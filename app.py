@@ -13,38 +13,37 @@ def parse_kml_konten(kml_file):
     features = list(doc.features())
 
     placemarks = []
-def extract_features(features):
-    for feature in features:
-        # Jika feature punya fitur anak (subfeatures)
-        if hasattr(feature, 'features') and isinstance(feature.features, list):
-            extract_features(feature.features)  # Jangan pakai ()
-        else:
-            name = getattr(feature, 'name', '')
-            geom = getattr(feature, 'geometry', None)
 
-            if geom is None:
-                continue
-
-            if isinstance(geom, Point):
-                coords = [(geom.y, geom.x)]
-            elif isinstance(geom, LineString):
-                coords = list(geom.coords)
-            elif isinstance(geom, Polygon):
-                coords = list(geom.exterior.coords)
+    def extract_features(features_list):
+        for feature in features_list:
+            if hasattr(feature, 'features') and isinstance(feature.features, list) and feature.features:
+                extract_features(list(feature.features))  # TANPA tanda kurung setelah 'features'
             else:
-                coords = []
+                name = getattr(feature, 'name', '')
+                geom = getattr(feature, 'geometry', None)
 
-            for lon, lat in coords:  # Perhatikan urutan koordinat
-                placemarks.append({
-                    "name": name,
-                    "latitude": lat,
-                    "longitude": lon
-                })
+                if geom is None:
+                    continue
 
+                if isinstance(geom, Point):
+                    coords = [(geom.y, geom.x)]
+                elif isinstance(geom, LineString):
+                    coords = list(geom.coords)
+                elif isinstance(geom, Polygon):
+                    coords = list(geom.exterior.coords)
+                else:
+                    coords = []
 
+                for lon, lat in coords:  # shapely pakai (x, y) = (lon, lat)
+                    placemarks.append({
+                        "name": name,
+                        "latitude": lat,
+                        "longitude": lon
+                    })
 
     extract_features(features)
     return pd.DataFrame(placemarks)
+
 
 if uploaded_file:
     try:
