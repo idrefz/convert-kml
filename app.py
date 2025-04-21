@@ -13,21 +13,22 @@ def parse_kml_konten(kml_file):
     features = list(doc.features())
 
     placemarks = []
-    def extract_features(features):
-        for feature in features:
-            if hasattr(feature, 'features'):
-                extract_features(list(feature.features()))
+def extract_features(features):
+    for feature in features:
+        if hasattr(feature, 'features') and feature.features:
+            extract_features(list(feature.features))
+        else:
+            name = feature.name or ""
+            geom = feature.geometry
+            if isinstance(geom, Point):
+                coords = [(geom.y, geom.x)]
+            elif isinstance(geom, LineString) or isinstance(geom, Polygon):
+                coords = list(geom.coords) if hasattr(geom, 'coords') else geom.exterior.coords
             else:
-                name = feature.name or ""
-                geom = feature.geometry
-                if isinstance(geom, Point):
-                    coords = [(geom.y, geom.x)]
-                elif isinstance(geom, LineString) or isinstance(geom, Polygon):
-                    coords = list(geom.coords) if hasattr(geom, 'coords') else geom.exterior.coords
-                else:
-                    coords = []
-                for lat, lon in coords:
-                    placemarks.append({"name": name, "latitude": lat, "longitude": lon})
+                coords = []
+            for lat, lon in coords:
+                placemarks.append({"name": name, "latitude": lat, "longitude": lon})
+
 
     extract_features(features)
     return pd.DataFrame(placemarks)
