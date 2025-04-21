@@ -1,4 +1,5 @@
 streamlit 
 fastkml 
-pandas
-shapely
+shapely 
+pandas 
+openpyxl
