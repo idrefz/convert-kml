@@ -15,19 +15,32 @@ def parse_kml_konten(kml_file):
     placemarks = []
 def extract_features(features):
     for feature in features:
-        if hasattr(feature, 'features') and feature.features:
-            extract_features(list(feature.features))
+        # Jika feature punya fitur anak (subfeatures)
+        if hasattr(feature, 'features') and isinstance(feature.features, list):
+            extract_features(feature.features)  # Jangan pakai ()
         else:
-            name = feature.name or ""
-            geom = feature.geometry
+            name = getattr(feature, 'name', '')
+            geom = getattr(feature, 'geometry', None)
+
+            if geom is None:
+                continue
+
             if isinstance(geom, Point):
                 coords = [(geom.y, geom.x)]
-            elif isinstance(geom, LineString) or isinstance(geom, Polygon):
-                coords = list(geom.coords) if hasattr(geom, 'coords') else geom.exterior.coords
+            elif isinstance(geom, LineString):
+                coords = list(geom.coords)
+            elif isinstance(geom, Polygon):
+                coords = list(geom.exterior.coords)
             else:
                 coords = []
-            for lat, lon in coords:
-                placemarks.append({"name": name, "latitude": lat, "longitude": lon})
+
+            for lon, lat in coords:  # Perhatikan urutan koordinat
+                placemarks.append({
+                    "name": name,
+                    "latitude": lat,
+                    "longitude": lon
+                })
+
 
 
     extract_features(features)
