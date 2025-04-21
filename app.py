@@ -48,7 +48,7 @@ def parse_kml_konten(kml_file):
 if uploaded_file:
     try:
         df = parse_kml_konten(uploaded_file)
-        st.success(f"✅ Berhasil dikonversi! {len(df)} koordinat ditemukan.")
+        st.success(f"✅ Berhasil dikonversi!! {len(df)} koordinat ditemukan.")
         st.dataframe(df)
 
         csv = df.to_csv(index=False).encode("utf-8")
