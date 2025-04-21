@@ -20,8 +20,10 @@ if uploaded_file:
 
         def extract_polygons(features):
             for feature in features:
-                if hasattr(feature, 'features') and callable(getattr(feature, 'features', None)):
-                    extract_polygons(list(feature.features()))
+                # ambil sub-feature jika ada
+                sub_features = getattr(feature, 'features', None)
+                if sub_features and not isinstance(sub_features, list):
+                    extract_polygons(list(sub_features))
                 else:
                     name = getattr(feature, 'name', 'Unnamed')
                     geom = getattr(feature, 'geometry', None)
@@ -35,11 +37,11 @@ if uploaded_file:
 
         if polygons:
             df = pd.DataFrame(polygons)
-            st.success("Berhasil mengekstrak WKT dari Polygon!")
+            st.success("Berhasil mengekstrak Polygon ke WKT!")
             st.dataframe(df)
             st.download_button("⬇️ Download WKT CSV", df.to_csv(index=False), "polygon_wkt.csv", "text/csv")
         else:
-            st.warning("Tidak ditemukan polygon di file KML.")
+            st.warning("Tidak ada polygon ditemukan dalam file KML.")
 
     except Exception as e:
         st.error(f"Error saat membaca file KML: {e}")
