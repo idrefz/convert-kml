@@ -3,3 +3,4 @@ fastkml
 shapely 
 pandas 
 openpyxl
+geopandas
