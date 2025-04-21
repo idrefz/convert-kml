@@ -1,47 +1,61 @@
 import streamlit as st
-from fastkml import kml
-from shapely.geometry import Polygon
+import geopandas as gpd
 import pandas as pd
+import io
+from shapely.geometry import Point
 
-st.set_page_config(page_title="KML Polygon to WKT Converter", layout="centered")
-st.title("📐 KML Polygon to WKT Converter")
-st.caption("Upload file KML yang berisi Polygon dan akan dikonversi ke format WKT")
+st.set_page_config(page_title="Proyek ke STO Mapper", layout="wide")
+st.title("🔗 Mapping Proyek ke Polygon STO (Spatial Join)")
 
-uploaded_file = st.file_uploader("Upload KML file", type=["kml"])
+# 1. Upload file polygon STO (KML)
+st.header("1. Upload KML STO (Polygon Wilayah)")
+kml_file = st.file_uploader("Upload file KML (Polygon STO)", type=["kml"])
 
-if uploaded_file:
-    content = uploaded_file.read()
+# 2. Upload proyek dengan koordinat
+st.header("2. Upload File Proyek (dengan Koordinat)")
+proyek_file = st.file_uploader("Upload file Excel/CSV proyek", type=["xlsx", "csv"])
 
+# 3. Proses jika kedua file sudah diupload
+if kml_file and proyek_file:
     try:
-        doc = kml.KML()
-        doc.from_string(content)
+        # Read KML ke GeoDataFrame
+        gdf_sto = gpd.read_file(kml_file, driver='KML')
 
-        polygons = []
-
-        def extract_polygons(features):
-            for feature in features:
-                # ambil sub-feature jika ada
-                sub_features = getattr(feature, 'features', None)
-                if sub_features and not isinstance(sub_features, list):
-                    extract_polygons(list(sub_features))
-                else:
-                    name = getattr(feature, 'name', 'Unnamed')
-                    geom = getattr(feature, 'geometry', None)
-                    if isinstance(geom, Polygon):
-                        polygons.append({
-                            "name": name,
-                            "wkt": geom.wkt
-                        })
-
-        extract_polygons(list(doc.features()))
-
-        if polygons:
-            df = pd.DataFrame(polygons)
-            st.success("Berhasil mengekstrak Polygon ke WKT!")
-            st.dataframe(df)
-            st.download_button("⬇️ Download WKT CSV", df.to_csv(index=False), "polygon_wkt.csv", "text/csv")
+        # Read proyek file
+        if proyek_file.name.endswith(".csv"):
+            df_proyek = pd.read_csv(proyek_file)
         else:
-            st.warning("Tidak ada polygon ditemukan dalam file KML.")
+            df_proyek = pd.read_excel(proyek_file)
+
+        # Validasi kolom koordinat
+        if not {'latitude', 'longitude'}.issubset(df_proyek.columns):
+            st.error("File proyek harus memiliki kolom 'latitude' dan 'longitude'")
+        else:
+            # Convert proyek ke GeoDataFrame
+            geometry = [Point(xy) for xy in zip(df_proyek['longitude'], df_proyek['latitude'])]
+            gdf_proyek = gpd.GeoDataFrame(df_proyek, geometry=geometry, crs="EPSG:4326")
+
+            # Pastikan STO GeoDataFrame juga pakai EPSG:4326
+            gdf_sto = gdf_sto.to_crs("EPSG:4326")
+
+            # Spatial Join
+            hasil = gpd.sjoin(gdf_proyek, gdf_sto, how="left", predicate='within')
+
+            # Tampilkan hasil
+            st.header("3. Hasil Mapping Proyek ke STO")
+            st.dataframe(hasil)
+
+            # Download hasil
+            st.download_button(
+                label="📥 Download Hasil ke Excel",
+                data=hasil.drop(columns='geometry').to_excel(index=False, engine='openpyxl'),
+                file_name="hasil_mapping_proyek.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            # Tampilkan di peta
+            st.header("4. Visualisasi di Peta")
+            st.map(gdf_proyek)
 
     except Exception as e:
-        st.error(f"Error saat membaca file KML: {e}")
+        st.error(f"Terjadi error: {str(e)}")
