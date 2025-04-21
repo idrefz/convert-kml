@@ -5,7 +5,7 @@ import pandas as pd
 
 st.title("🗺️ KML to CSV Converter")
 
-uploaded_file = st.file_uploader("Upload KML file nya halah sia boi", type="kml")
+uploaded_file = st.file_uploader("Upload KML file nya halah sia boi boi boi", type="kml")
 
 def parse_kml_konten(kml_file):
     doc = kml.KML()
