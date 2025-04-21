@@ -1,48 +1,58 @@
+import streamlit as st
 from fastkml import kml
 from shapely.geometry import Point, LineString, Polygon
 import pandas as pd
 
-# Ubah path di bawah sesuai lokasi file KML kamu
-kml_file_path = "sto.kml"
-output_file_path = "sto_output.xlsx"
+st.set_page_config(page_title="KML to CSV Converter", layout="centered")
+st.title("🗺️ KML to CSV Converter")
+st.caption("Upload KML file nya halah sia boi boi boi")
 
-with open(kml_file_path, 'rb') as f:
-    content = f.read()
+uploaded_file = st.file_uploader("Upload KML file", type=["kml"])
 
-doc = kml.KML()
-doc.from_string(content)
+if uploaded_file is not None:
+    try:
+        content = uploaded_file.read()
 
-placemarks = []
+        doc = kml.KML()
+        doc.from_string(content)
 
-def extract_features(features):
-    for feature in features:
-        if hasattr(feature, 'features') and callable(feature.features):
-            extract_features(list(feature.features()))
+        placemarks = []
+
+        def extract_features(features):
+            for feature in features:
+                if hasattr(feature, 'features') and callable(getattr(feature, 'features', None)):
+                    extract_features(list(feature.features()))
+                else:
+                    name = getattr(feature, 'name', '')
+                    geom = getattr(feature, 'geometry', None)
+                    if geom is None:
+                        continue
+
+                    if isinstance(geom, Point):
+                        coords = [(geom.y, geom.x)]
+                    elif isinstance(geom, LineString):
+                        coords = list(geom.coords)
+                    elif isinstance(geom, Polygon):
+                        coords = list(geom.exterior.coords)
+                    else:
+                        coords = []
+
+                    for lon, lat in coords:
+                        placemarks.append({
+                            "name": name,
+                            "latitude": lat,
+                            "longitude": lon
+                        })
+
+        extract_features(list(doc.features()))
+
+        if placemarks:
+            df = pd.DataFrame(placemarks)
+            st.success("Berhasil mengonversi file! Silakan download hasilnya.")
+            st.dataframe(df)
+            st.download_button("⬇️ Download CSV", df.to_csv(index=False), "converted_kml.csv", "text/csv")
         else:
-            name = getattr(feature, 'name', '')
-            geom = getattr(feature, 'geometry', None)
-            if geom is None:
-                continue
+            st.warning("Tidak ada koordinat yang ditemukan dalam file KML.")
 
-            if isinstance(geom, Point):
-                coords = [(geom.y, geom.x)]
-            elif isinstance(geom, LineString):
-                coords = list(geom.coords)
-            elif isinstance(geom, Polygon):
-                coords = list(geom.exterior.coords)
-            else:
-                coords = []
-
-            for lon, lat in coords:
-                placemarks.append({
-                    "name": name,
-                    "latitude": lat,
-                    "longitude": lon
-                })
-
-extract_features(list(doc.features()))
-
-df = pd.DataFrame(placemarks)
-df.to_excel(output_file_path, index=False)
-
-print(f"Berhasil disimpan ke {output_file_path}")
+    except Exception as e:
+        st.error(f"Gagal mengonversi file: {e}")
